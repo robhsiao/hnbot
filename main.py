@@ -16,13 +16,17 @@
 #
 from google.appengine.ext import webapp, db
 from google.appengine.ext.webapp import util, template
+from google.appengine.api import urlfetch
 import os
 import facebook
 import logging
+import urllib
+import time
 
 class AccessToken(db.Model):
     page_id = db.IntegerProperty(required=True)
-    access_token = db.StringProperty(required=True)
+    user_token = db.StringProperty(required=True)
+    page_token = db.StringProperty(required=True)
 
 class NewsItem(db.Model):
     id = db.IntegerProperty(required=True)
@@ -44,19 +48,33 @@ class HomeHandler(BaseHandler):
 
     def post(self):
         page_id = int(self.request.get('page_id'))
-        self.write(type(self.request.get('page_id')))
-        access_token = self.request.get('access_token')
-        if (page_id and access_token):
+        user_token = self.request.get('user_token')
+        page_token = self.request.get('page_token')
+        logging.debug(page_token)
+        logging.debug(user_token)
+        logging.debug(page_id)
+        if (page_id and user_token and page_token):
             AccessToken(
                 key_name = 'page_id',
                 page_id = page_id,
-                access_token = access_token
+                user_token = user_token,
+                page_token = page_token,
             ).put()
 
 class ListHandler(BaseHandler):
     def get(self):
         for i in AccessToken.all():
-            self.write(i.access_token)
+            data = urllib.urlencode({
+                'access_token' : i.page_token,
+                'link' : 'http://www.google.com/',
+                'message' : time.time()
+            })
+            self.write(urlfetch.fetch(
+                #'https://graph.facebook.com/178568815531741/links?access_token=' + i.user_token,
+                'https://graph.facebook.com/178568815531741/links',
+                payload=data,
+                method=urlfetch.POST,
+            ).content)
 
 def main():
     application = webapp.WSGIApplication([
