@@ -1,0 +1,4 @@
+cron:
+- description: update hacker news
+  url: /update
+  schedule: every 50 minutes

@@ -18,7 +18,6 @@ from google.appengine.ext import webapp, db
 from google.appengine.ext.webapp import util, template
 from google.appengine.api import urlfetch
 import os
-import facebook
 import logging
 import urllib
 import time
@@ -61,7 +60,7 @@ class HomeHandler(BaseHandler):
                 page_token = page_token,
             ).put()
 
-class ListHandler(BaseHandler):
+class UpdateHandler(BaseHandler):
     def get(self):
         for i in AccessToken.all():
             data = urllib.urlencode({
@@ -79,7 +78,7 @@ class ListHandler(BaseHandler):
 def main():
     application = webapp.WSGIApplication([
         ('/', HomeHandler),
-        ('/list', ListHandler),
+        ('/update', UpdateHandler),
         ], debug=True)
     util.run_wsgi_app(application)
 
