@@ -5,4 +5,4 @@ http://www.facebook.com/pages/Hacker-News/178568815531741
 TODO
     Use Bottle as framework.
     Use take queue.
-    Gql SELECT * FROM PostedNews WHERE id IN ()
+    Gql SELECT * FROM PostedNews WHERE id IN () AND add index
