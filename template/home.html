@@ -7,7 +7,7 @@
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
 <script>
   // 232293086787125|7e5fa5c6ad6c820e2e4e2f77.1-530678173|178568815531741|Exx_Qt_SWh0vsEsEqCroo6C1rIA
-  var app_id = '232293086787125', page_id = '174561909225066';
+  var app_id = '232293086787125', page_id = '178568815531741';
   window.fbAsyncInit = function() {
     FB.init({appId: app_id, status: true, cookie: true, xfbml:
         true, channelUrl: document.location.protocol + '//' + document.location.host + '/channel/xd_receiver.html'});
@@ -18,7 +18,8 @@
                   user_token = response.session.access_token,
                   FB.api('/me/accounts', function(response){
                       page_token = '';
-                      // 取得 app 的token
+                      // lookup access token of page.
+                      window.console.log(response)
                       for (i = 0; i < response.data.length; i++) {
                           if (response.data[i].id = page_id)
                           {
