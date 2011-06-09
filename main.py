@@ -60,6 +60,7 @@ class UpdateHandler(BaseHandler):
             return
 
         shorted = {}
+        counter = 0
         for page in AccessToken.all():
             for url, subject, id in self.news:
 
@@ -72,6 +73,11 @@ class UpdateHandler(BaseHandler):
                 if item:
                     logging.debug('Ignore %s',id)
                     continue
+
+                counter += 1
+
+                if (counter > 3):
+                    return
 
                 if url.startswith('item?'):
                     url = 'http://news.ycombinator.com/%s' % url
@@ -110,7 +116,6 @@ class UpdateHandler(BaseHandler):
                                 page_id = page.page_id,
                                 news_id = id
                         ).put()
-                time.sleep(3)
 
     def test(self):
         for i in AccessToken.all():
@@ -146,7 +151,7 @@ class UpdateHandler(BaseHandler):
 
         for item in matches:
             url = subject = id = None
-            match = re.search('title"><a\s+href="(.+?)">(.+?)</a>', item, re.DOTALL)
+            match = re.search('title"><a\s+href="([^"]+?)".*?>(.+?)</a>', item, re.DOTALL)
             if (match):
                 url, subject = match.group(1,2)
 
@@ -163,17 +168,11 @@ class UpdateHandler(BaseHandler):
                 subject = "[HackerNewsBot] %s" % msg)
         message.send()
 
-class TestHandler(BaseHandler):
+class TestHandler(UpdateHandler):
     def get(self):
-        item = PostedNews.gql(
-                'WHERE  news_id = :news_id AND page_id = :page_id',
-                news_id = 2635572,
-                page_id = 178568815531741
-                ).get()
-        if item:
-            self.write('Yes')
-        else:
-            self.write('No')
+        self.fetch_news()
+        for url, subject, id in self.news:
+            self.write("<a href=%s>%s</a><br>" % (url, subject))
 def main():
     application = webapp.WSGIApplication([
         ('/', HomeHandler),
