@@ -6,7 +6,6 @@
 <div id="fb-root"></div>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
 <script>
-  // 232293086787125|7e5fa5c6ad6c820e2e4e2f77.1-530678173|178568815531741|Exx_Qt_SWh0vsEsEqCroo6C1rIA
   var app_id = '232293086787125', page_id = '178568815531741';
   window.fbAsyncInit = function() {
     FB.init({appId: app_id, status: true, cookie: true, xfbml:
@@ -27,8 +26,8 @@
                               break;
                           }
                       }
-                      $.post('/', {page_id:page_id, user_token:user_token,page_token:page_token},function(){
-                          alert('token saved');
+                      $.post('{{path}}', {page_id:page_id, user_token:user_token,page_token:page_token},function(data){
+                          if (data.status) alert('Access token saved');
                       });
                   });
               }

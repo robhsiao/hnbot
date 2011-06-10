@@ -8,4 +8,4 @@ handlers:
   static_dir: channel
 
 - url: .*
-  script: main.py
+  script: app.py
