@@ -149,7 +149,11 @@ class UpdateHandler(BaseHandler):
             self.alert("Can't find any items")
             return
 
+        count = 0
         for item in matches:
+            count += 1
+            if (count > 10):
+                break
             url = subject = id = None
             match = re.search('title"><a\s+href="([^"]+?)".*?>(.+?)</a>', item, re.DOTALL)
             if (match):

@@ -1,4 +1,4 @@
 cron:
 - description: update hacker news
   url: /update
-  schedule: every 5 minutes
+  schedule: every 13 minutes
