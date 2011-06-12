@@ -56,22 +56,14 @@ def fetch(url, data=None, retry=0):#{{{
 
 # ----------------------------------------
 
-PATH = '/4096578a4e67e5cde1ebe63c2d4cc81a'
 MAXNUM = 10
 
-@route('/env')#{{{
+@route('/')#{{{
 def action():
-    for key, value in request.environ.items():
-        logging.debug('%s => %s', key, value)
-    return '.'
+    return template('home')
 #}}}
 
-@route(PATH)#{{{
-def action():
-    return template('home', path=PATH)
-#}}}
-
-@route(PATH,method='POST')#{{{
+@route('/',method='POST')#{{{
 def action():
     page_id = request.forms.get('page_id')
     user_token = request.forms.get('user_token')
@@ -88,30 +80,27 @@ def action():
 def action():
     key_names = []
     extracted = {}
-    cursor = 0
+    urls = (
+        'http://news.ycombinator.com/',
+        'http://robhsiao.sinaapp.com/proxy.php?url=http%3A%2F%2Fnews.ycombinator.com%2F'
+    )
 
-    retry = int(request.GET.get('retry','0'))
-    urls = ['http://news.ycombinator.com/',
-            'http://news.ycombinator.com.nyud.net/',
-            ]
-    url = retry < len(urls) and urls[retry] or urls[0]
 
-    try:
-        content = fetch(url)
-    except urlfetch.DownloadError:
-        content = None
-
-    if not content:
-        if retry < len(urls):
-            retry += 1
-            taskqueue.add(
-                    url='/fetch?retry=%s' % retry, method='GET',
-                    eta= datetime.datetime.now() + datetime.timedelta(minutes=1))
-        abort(500)
+    for index in xrange(len(urls)):
+        try:
+            content = fetch(urls[index])
+            if content:
+                break
+            elif index >= len(urls):
+                abort(500)
+        except urlfetch.DownloadError:
+            if index >= len(urls):
+                raise
 
     news = re.findall(r'<a\s+id=up_\d+(.+?)<tr\s+style="height:5px">', content, re.DOTALL)
     if not news: abort(500)
 
+    cursor = 0
     max = min(MAXNUM, len(news));
 
     while cursor < max:
@@ -174,22 +163,42 @@ def action():
                 PostedNews(key_name=id, news_id = long(id)).put()
 #}}}
 
+@route('/tool/env')#{{{
+def action():
+    content = '<pre>'
+    for key, value in request.environ.items():
+        content += "%s => %s\n" % (key, value)
+    content += '</pre>'
+    return content
+#}}}
+
 @route('/tool/remove')#{{{ Flush all posted link
 def action():
     page = memcache.get("access_token")
+    if not page:
+        page = AccessToken.get_by_key_name('1')
+        if not page: abort(500)
 
-    content = fetch('https://graph.facebook.com/%s/links?access_token=%s' % (page.page_id, page.page_token), retry=3)
-    if content:
-        obj = json.loads(content)
-        for item in obj['data']:
-            logging.debug(item['id'])
-            content = fetch('https://graph.facebook.com/%s_%s?method=delete&access_token=%s'
-                    % (page.page_id, item['id'], page.page_token))
-            logging.debug(content)#}}}
+    while True:
+        content = fetch('https://graph.facebook.com/%s/links?access_token=%s' % (page.page_id, page.page_token), retry=3)
+        if content:
+            obj = json.loads(content)
 
-@route('/test/fetch')#{{{
-def action():
-    return fetch('http://news.ycombinator.com.nyud.net/')#}}}
+            if not obj['data']:
+                return "Done"
+
+            for item in obj['data']:
+                logging.debug(item['id'])
+                content = fetch('https://graph.facebook.com/%s_%s?method=delete&access_token=%s'
+                        % (page.page_id, item['id'], page.page_token))
+                logging.debug(content)#}}}
+
+@route('/tool/url/:url#.+#')#{{{
+def action(url):
+    if request.environ['QUERY_STRING']:
+        url += '?' + request.environ['QUERY_STRING']
+    return fetch(url)
+#}}}
 
 debug(True)
 logging.getLogger().setLevel(logging.DEBUG)

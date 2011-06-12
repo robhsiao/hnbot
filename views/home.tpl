@@ -26,7 +26,7 @@
                               break;
                           }
                       }
-                      $.post('{{path}}', {page_id:page_id, user_token:user_token,page_token:page_token},function(data){
+                      $.post('/', {page_id:page_id, user_token:user_token,page_token:page_token},function(data){
                           if (data.status) alert('Access token saved');
                       });
                   });
