@@ -4,12 +4,13 @@ from bottle import route, run, request, template, abort, debug #TODO remove
 from google.appengine.ext import db
 from google.appengine.api import urlfetch, mail, taskqueue, memcache
 from django.utils import simplejson as json
-import urllib, re
+import urllib, datetime, re
 import logging
+#import feedparser
 
-#import sys
-#reload(sys)
-#sys.setdefaultencoding('utf-8')
+# import sys
+# reload(sys)
+# sys.setdefaultencoding('utf-8')
 
 # ---------- Datastore -------------------
 
@@ -36,7 +37,7 @@ def fetch(url, data=None, retry=0):#{{{
                 response = urlfetch.fetch(url,
                         payload=urllib.urlencode(data), method=urlfetch.POST)
             else:
-                response = urlfetch.fetch(url)
+                response = urlfetch.fetch(url,deadline=60)
 
             if (response.status_code == 200):
                 logging.debug('Fetching %s OK', url)
@@ -49,6 +50,7 @@ def fetch(url, data=None, retry=0):#{{{
                 retries -= 1
             else:
                 logging.error("Error while fetcing %s", url)
+                raise
                 break
     return content#}}}
 
@@ -88,8 +90,24 @@ def action():
     extracted = {}
     cursor = 0
 
-    content = fetch('http://news.ycombinator.com/news')
-    if not content: abort(500)
+    retry = int(request.GET.get('retry','0'))
+    urls = ['http://news.ycombinator.com/',
+            'http://news.ycombinator.com.nyud.net/',
+            ]
+    url = retry < len(urls) and urls[retry] or urls[0]
+
+    try:
+        content = fetch(url)
+    except urlfetch.DownloadError:
+        content = None
+
+    if not content:
+        if retry < len(urls):
+            retry += 1
+            taskqueue.add(
+                    url='/fetch?retry=%s' % retry, method='GET',
+                    eta= datetime.datetime.now() + datetime.timedelta(minutes=1))
+        abort(500)
 
     news = re.findall(r'<a\s+id=up_\d+(.+?)<tr\s+style="height:5px">', content, re.DOTALL)
     if not news: abort(500)
@@ -155,6 +173,23 @@ def action():
                 logging.debug('Post links: %s, id: %s', url, id)
                 PostedNews(key_name=id, news_id = long(id)).put()
 #}}}
+
+@route('/tool/remove')#{{{ Flush all posted link
+def action():
+    page = memcache.get("access_token")
+
+    content = fetch('https://graph.facebook.com/%s/links?access_token=%s' % (page.page_id, page.page_token), retry=3)
+    if content:
+        obj = json.loads(content)
+        for item in obj['data']:
+            logging.debug(item['id'])
+            content = fetch('https://graph.facebook.com/%s_%s?method=delete&access_token=%s'
+                    % (page.page_id, item['id'], page.page_token))
+            logging.debug(content)#}}}
+
+@route('/test/fetch')#{{{
+def action():
+    return fetch('http://news.ycombinator.com.nyud.net/')#}}}
 
 debug(True)
 logging.getLogger().setLevel(logging.DEBUG)

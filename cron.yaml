@@ -1,4 +1,4 @@
 cron:
-- description: update hacker news
+- description: Fetch newest stories
   url: /fetch
   schedule: every 10 minutes
