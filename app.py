@@ -4,7 +4,7 @@ from bottle import route, run, request, template, abort, debug #TODO remove
 from google.appengine.ext import db
 from google.appengine.api import urlfetch, mail, taskqueue, memcache
 from django.utils import simplejson as json
-import urllib, datetime, re
+import urllib, time, datetime, re
 import logging
 #import feedparser
 
@@ -42,10 +42,12 @@ def fetch(url, data=None, retry=0):#{{{
             if (response.status_code == 200):
                 logging.debug('Fetching %s OK', url)
                 content = response.content
-            break
+                break
+            else:
+                raise urlfetch.DownloadError('Response code error')
         except:
             if retries > 0:
-                logging.warn("Error while fetcing %s, will try again 1 seconds later")
+                logging.warn("Error while fetcing %s, will try again 1 seconds later", url)
                 time.sleep(1)
                 retries -= 1
             else:
@@ -92,8 +94,8 @@ def action():
             content = fetch(urls[index])
             if content:
                 break
-            elif index >= len(urls):
-                abort(500)
+            else:
+                raise urlfetch.DownloadError('Response error')
         except urlfetch.DownloadError:
             if index >= len(urls):
                 raise
@@ -198,9 +200,9 @@ def action():
 def action(url):
     if request.environ['QUERY_STRING']:
         url += '?' + request.environ['QUERY_STRING']
-    return fetch(url)
+    return fetch(url, retry=5)
 #}}}
 
-debug(True)
+#debug(True)
 logging.getLogger().setLevel(logging.DEBUG)
 run(server='gae')
