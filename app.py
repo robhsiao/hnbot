@@ -56,7 +56,7 @@ def fetch(url, data=None, retry=0):#{{{
 
 # ----------------------------------------
 
-MAXNUM = 10
+MAXNUM = 5
 
 @route('/')#{{{
 def action():
