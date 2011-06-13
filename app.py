@@ -82,6 +82,7 @@ def action():
     extracted = {}
     urls = (
         'http://news.ycombinator.com/',
+        'http://xiaobin.net/proxy.php?url=http%3A%2F%2Fnews.ycombinator.com%2F' # Fallback
         'http://robhsiao.sinaapp.com/proxy.php?url=http%3A%2F%2Fnews.ycombinator.com%2F'
     )
 
