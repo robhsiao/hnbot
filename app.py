@@ -47,11 +47,11 @@ def fetch(url, data=None, retry=0):#{{{
                 raise urlfetch.DownloadError('Response code error')
         except:
             if retries > 0:
-                logging.warn("Error while fetcing %s, will try again 1 seconds later", url)
+                logging.exception("Error while fetcing %s, will try again 1 seconds later", url)
                 time.sleep(1)
                 retries -= 1
             else:
-                logging.error("Error while fetcing %s", url)
+                logging.exception("Error while fetcing %s", url)
                 raise
                 break
     return content#}}}
