@@ -8,9 +8,9 @@ import urllib, time, datetime, re
 import logging
 #import feedparser
 
-# import sys
-# reload(sys)
-# sys.setdefaultencoding('utf-8')
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 # ---------- Datastore -------------------
 
@@ -122,11 +122,12 @@ def action():
     rows = PostedNews.get_by_key_name(key_names)
 
     for index, row in enumerate(rows):
+        story = extracted[key_names[index]]
         if not row:
-            logging.debug('Add news %s to queue', key_names[index])
-            taskqueue.add(url='/publish', params=extracted[key_names[index]])
+            logging.debug('Add news story "%(title)s" (%(id)s) to queue', story)
+            taskqueue.add(url='/publish', params=story)
         else:
-            logging.debug('Ignore news: %s', key_names[index])
+            logging.debug('Ignore news story "%(title)s" (%(id)s)', story)
 #}}}
 
 @route('/publish', method='POST') #{{{ Task Queue worker
@@ -135,18 +136,22 @@ def action():
     title = request.forms.get('title')
     url   = request.forms.get('url')
 
+    logging.info('Publish news story "%s" (id:%s)', title, id)
+
     cache_key = "access_token";
     page = memcache.get(cache_key)
     if not page:
         page = AccessToken.get_by_key_name('1')
-        if not page: abort(500)
+        if not page:
+            logging.error("No access_token found in datastore")
+            abort(500)
         memcache.add(cache_key, page)
 
     if url.startswith('item?'):
         url = 'http://news.ycombinator.com/%s' % url
 
 
-    # Shorten HN comment URL
+    # Shorten HN comment URL via bit.ly
     comment_url = 'http://news.ycombinator.com/item?id=%s' % id
     content = fetch('http://api.bitly.com/v3/shorten?login=robhsiao&apiKey=R_c5c51827c681f69a3e6d3831e77e1431&longUrl=%s&format=json'
             % urllib.quote_plus(comment_url), retry=3)
@@ -155,6 +160,8 @@ def action():
         if (obj['status_code'] == 200):
             comment_url = obj['data']['url']
 
+    logging.debug('Comment URL is: %s', comment_url)
+
     exist = PostedNews.get_by_key_name(id)
     if not exist:
         data = {'access_token' : page.page_token, 'link' : url, 'message' : "%s \n(Discuss on HN - %s)" % (title, comment_url) }
@@ -162,8 +169,10 @@ def action():
         if content:
             obj = json.loads(content)
             if 'id' in obj:
-                logging.debug('Post links: %s, id: %s', url, id)
+                logging.debug('News story "%s"(id:%s) was published successful', title, id)
                 PostedNews(key_name=id, news_id = long(id)).put()
+    else:
+        logging.warn('News story "%s"(id:%s) was exists in datastore', title, id)
 #}}}
 
 @route('/tool/env')#{{{
@@ -194,9 +203,10 @@ def action():
                 logging.debug(item['id'])
                 content = fetch('https://graph.facebook.com/%s_%s?method=delete&access_token=%s'
                         % (page.page_id, item['id'], page.page_token))
-                logging.debug(content)#}}}
+                logging.debug(content)
+#}}}
 
-@route('/tool/url/:url#.+#')#{{{
+@route('/tool/url/:url#.+#')#{{{ Test fetch function on server
 def action(url):
     if request.environ['QUERY_STRING']:
         url += '?' + request.environ['QUERY_STRING']
