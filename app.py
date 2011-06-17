@@ -31,6 +31,8 @@ def fetch(url, data=None, retry=0):#{{{
     content = None
     retries = retry
     logging.debug('Fetching %s', url)
+    if data:
+        logging.debug('POST params: %s', data)
     while True:
         try:
             if data:
@@ -138,6 +140,9 @@ def action():
 
     logging.info('Publish news story "%s" (id:%s)', title, id)
 
+    if not title:
+        abort(500)
+
     cache_key = "access_token";
     page = memcache.get(cache_key)
     if not page:
@@ -165,12 +170,18 @@ def action():
     exist = PostedNews.get_by_key_name(id)
     if not exist:
         data = {'access_token' : page.page_token, 'link' : url, 'message' : "%s \n(Discuss on HN - %s)" % (title, comment_url) }
-        content = fetch('https://graph.facebook.com/%s/links?access_token=%s' % (page.page_id, page.user_token), data, 3)
-        if content:
-            obj = json.loads(content)
-            if 'id' in obj:
-                logging.debug('News story "%s"(id:%s) was published successful', title, id)
-                PostedNews(key_name=id, news_id = long(id)).put()
+        try:
+            content = fetch('https://graph.facebook.com/%s/links?access_token=%s' % (page.page_id, page.user_token), data)
+            if content:
+                logging.debug(content)
+                obj = json.loads(content)
+                if 'id' in obj and obj['id']:
+                    logging.debug('Facebook post id is: %s', obj['id'])
+                    logging.info('News story "%s"(id:%s) was published successful', title, id)
+                    PostedNews(key_name=id, news_id = long(id)).put()
+        except:
+            logging.exception('News story "%s"(id:%s) seems published failed', title, id)
+            PostedNews(key_name=id, news_id = long(id)).put()
     else:
         logging.warn('News story "%s"(id:%s) was exists in datastore', title, id)
 #}}}
@@ -212,6 +223,10 @@ def action(url):
         url += '?' + request.environ['QUERY_STRING']
     return fetch(url, retry=5)
 #}}}
+
+@route('/tool/flush')
+def action():
+    memcache.flush_all()
 
 #debug(True)
 logging.getLogger().setLevel(logging.DEBUG)
